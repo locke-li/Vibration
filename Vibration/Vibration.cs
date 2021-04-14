@@ -35,12 +35,12 @@ public static class Vibration
 #endif
 
 #if UNITY_ANDROID
-    public static AndroidJavaClass unityPlayer;
-    public static AndroidJavaObject currentActivity;
-    public static AndroidJavaObject vibrator;
-    public static AndroidJavaObject context;
+    internal static AndroidJavaClass unityPlayer;
+    internal static AndroidJavaObject currentActivity;
+    internal static AndroidJavaObject vibrator;
+    internal static AndroidJavaObject context;
 
-    public static AndroidJavaClass vibrationEffect;
+    internal static AndroidJavaClass vibrationEffect;
 
 
 #endif
@@ -49,20 +49,15 @@ public static class Vibration
     public static void Init ()
     {
         if ( initialized ) return;
+#if UNITY_EDITOR
+#elif UNITY_ANDROID
+        unityPlayer = new AndroidJavaClass ( "com.unity3d.player.UnityPlayer" );
+        currentActivity = unityPlayer.GetStatic<AndroidJavaObject> ( "currentActivity" );
+        vibrator = currentActivity.Call<AndroidJavaObject> ( "getSystemService", "vibrator" );
+        context = currentActivity.Call<AndroidJavaObject> ( "getApplicationContext" );
 
-#if UNITY_ANDROID
-
-        if ( Application.isMobilePlatform ) {
-
-            unityPlayer = new AndroidJavaClass ( "com.unity3d.player.UnityPlayer" );
-            currentActivity = unityPlayer.GetStatic<AndroidJavaObject> ( "currentActivity" );
-            vibrator = currentActivity.Call<AndroidJavaObject> ( "getSystemService", "vibrator" );
-            context = currentActivity.Call<AndroidJavaObject> ( "getApplicationContext" );
-
-            if ( AndroidVersion >= 26 ) {
-                vibrationEffect = new AndroidJavaClass ( "android.os.VibrationEffect" );
-            }
-
+        if ( AndroidVersion >= 26 ) {
+            vibrationEffect = new AndroidJavaClass ( "android.os.VibrationEffect" );
         }
 #endif
 
@@ -74,40 +69,37 @@ public static class Vibration
     ///</summary>
     public static void VibratePop ()
     {
-        if ( Application.isMobilePlatform ) {
-#if UNITY_IOS
+#if UNITY_EDITOR
+#elif UNITY_IOS
         _VibratePop ();
 #elif UNITY_ANDROID
-            Vibrate ( 50 );
+        Vibrate ( 50 );
 #endif
-        }
     }
     ///<summary>
     /// Small peek vibration
     ///</summary>
     public static void VibratePeek ()
     {
-        if ( Application.isMobilePlatform ) {
-#if UNITY_IOS
+#if UNITY_EDITOR
+#elif UNITY_IOS
         _VibratePeek ();
 #elif UNITY_ANDROID
-            Vibrate ( 100 );
+        Vibrate ( 100 );
 #endif
-        }
     }
     ///<summary>
     /// 3 small vibrations
     ///</summary>
     public static void VibrateNope ()
     {
-        if ( Application.isMobilePlatform ) {
-#if UNITY_IOS
+#if UNITY_EDITOR
+#elif UNITY_IOS
         _VibrateNope ();
 #elif UNITY_ANDROID
-            long[] pattern = { 0, 50, 50, 50 };
-            Vibrate ( pattern, -1 );
+        long[] pattern = { 0, 50, 50, 50 };
+        Vibrate ( pattern, -1 );
 #endif
-        }
     }
 
 
@@ -117,25 +109,18 @@ public static class Vibration
     ///</summary>
     public static void Vibrate ( long milliseconds )
     {
+#if UNITY_EDITOR
+#elif UNITY_ANDROID
+        if ( AndroidVersion >= 26 ) {
+            AndroidJavaObject createOneShot = vibrationEffect.CallStatic<AndroidJavaObject> ( "createOneShot", milliseconds, -1 );
+            vibrator.Call ( "vibrate", createOneShot );
 
-        if ( Application.isMobilePlatform ) {
-#if !UNITY_WEBGL
-#if UNITY_ANDROID
-
-            if ( AndroidVersion >= 26 ) {
-                AndroidJavaObject createOneShot = vibrationEffect.CallStatic<AndroidJavaObject> ( "createOneShot", milliseconds, -1 );
-                vibrator.Call ( "vibrate", createOneShot );
-
-            } else {
-                vibrator.Call ( "vibrate", milliseconds );
-            }
+        } else {
+            vibrator.Call ( "vibrate", milliseconds );
+        }
 #elif UNITY_IOS
         Handheld.Vibrate();
-#else
-        Handheld.Vibrate ();
 #endif
-#endif
-        }
     }
 
     ///<summary>
@@ -144,23 +129,18 @@ public static class Vibration
     ///</summary>
     public static void Vibrate ( long[] pattern, int repeat )
     {
-        if ( Application.isMobilePlatform ) {
-#if UNITY_ANDROID
+#if UNITY_EDITOR
+#elif UNITY_ANDROID
+        if ( AndroidVersion >= 26 ) {
+            AndroidJavaObject createWaveform = vibrationEffect.CallStatic<AndroidJavaObject> ( "createWaveform", pattern, repeat );
+            vibrator.Call ( "vibrate", createWaveform );
 
-            if ( AndroidVersion >= 26 ) {
-                long[] amplitudes;
-                AndroidJavaObject createWaveform = vibrationEffect.CallStatic<AndroidJavaObject> ( "createWaveform", pattern, repeat );
-                vibrator.Call ( "vibrate", createWaveform );
-
-            } else {
-                vibrator.Call ( "vibrate", pattern, repeat );
-            }
+        } else {
+            vibrator.Call ( "vibrate", pattern, repeat );
+        }
 #elif UNITY_IOS
         Handheld.Vibrate();
-#else
-        Handheld.Vibrate ();
 #endif
-        }
     }
 
     ///<summary>
@@ -168,47 +148,40 @@ public static class Vibration
     ///</summary>
     public static void Cancel ()
     {
-        if ( Application.isMobilePlatform ) {
 #if UNITY_ANDROID
-            vibrator.Call ( "cancel" );
+        vibrator.Call ( "cancel" );
 #endif
-        }
     }
 
     public static bool HasVibrator ()
     {
-        if ( Application.isMobilePlatform ) {
-
-#if UNITY_ANDROID
-
-            AndroidJavaClass contextClass = new AndroidJavaClass ( "android.content.Context" );
-            string Context_VIBRATOR_SERVICE = contextClass.GetStatic<string> ( "VIBRATOR_SERVICE" );
-            AndroidJavaObject systemService = context.Call<AndroidJavaObject> ( "getSystemService", Context_VIBRATOR_SERVICE );
-            if ( systemService.Call<bool> ( "hasVibrator" ) ) {
-                return true;
-            } else {
-                return false;
-            }
-
+#if UNITY_EDITOR
+        return false;
+#elif UNITY_ANDROID
+        AndroidJavaClass contextClass = new AndroidJavaClass ( "android.content.Context" );
+        string Context_VIBRATOR_SERVICE = contextClass.GetStatic<string> ( "VIBRATOR_SERVICE" );
+        AndroidJavaObject systemService = context.Call<AndroidJavaObject> ( "getSystemService", Context_VIBRATOR_SERVICE );
+        if ( systemService.Call<bool> ( "hasVibrator" ) ) {
+            return true;
+        } else {
+            return false;
+        }
 #elif UNITY_IOS
         return _HasVibrator ();
 #else
         return false;
 #endif
-        } else {
-            return false;
-        }
     }
 
 
     public static void Vibrate ()
     {
-        if ( Application.isMobilePlatform ) {
-            Handheld.Vibrate ();
-        }
+#if UNITY_ANDROID || UNITY_IOS
+        Handheld.Vibrate ();
+#endif
     }
 
-    public static int AndroidVersion {
+    internal static int AndroidVersion {
         get {
             int iVersionNumber = 0;
             if ( Application.platform == RuntimePlatform.Android ) {
